@@ -11,9 +11,9 @@ interface StrategyCardProps {
 
 export function StrategyCard({ strategy, onCopy, index }: StrategyCardProps) {
   const riskColors = {
-    Low: "text-green-600 bg-green-100",
-    Medium: "text-yellow-600 bg-yellow-100",
-    High: "text-red-600 bg-red-100",
+    Low: "bg-emerald-500/10 text-emerald-400",
+    Medium: "bg-yellow-500/10 text-yellow-400",
+    High: "bg-red-500/10 text-red-400",
   };
 
   return (
@@ -21,78 +21,85 @@ export function StrategyCard({ strategy, onCopy, index }: StrategyCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      whileHover={{ y: -4, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.1)" }}
-      className="bg-card rounded-2xl p-6 shadow-soft border border-border transition-all duration-300 cursor-pointer group"
+      className="bg-[#161B26] border border-slate-800 rounded-2xl p-6 hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-emerald-900/10 flex flex-col justify-between group"
     >
-      <div className="flex items-start gap-4 mb-4">
-        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-2xl">
-          {strategy.avatar}
+      {/* Header Section */}
+      <div>
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex gap-3">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-emerald-600 text-white text-2xl shadow-inner">
+              {strategy.avatar}
+            </div>
+            <div>
+              <h3 className="font-bold text-lg leading-tight text-white">
+                {strategy.creator}
+              </h3>
+              <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                <span>{strategy.username}</span>
+                <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
+                <span>{strategy.followers} followers</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex-1">
-          <h3 className="font-bold text-foreground">{strategy.creator}</h3>
-          <p className="text-sm text-muted-foreground">
-            {strategy.username} • {strategy.followers} followers
+
+        {/* Bio & Allocation */}
+        <div className="mb-6">
+          <p className="text-sm text-gray-300 italic mb-3">"{strategy.bio}"</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(strategy.allocation).map(([coin, percent]) => (
+              <span
+                key={coin}
+                className="px-3 py-1 bg-[#1F2937] border border-gray-700 rounded-lg text-xs font-semibold text-gray-300"
+              >
+                {coin} <span className="text-emerald-400 ml-1">{percent}%</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="bg-[#0B0E14] rounded-xl p-4 mb-6 grid grid-cols-3 gap-2 divide-x divide-gray-800">
+        <div className="text-center px-1">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+            12mo Rtn
+          </p>
+          <p className="text-emerald-400 font-bold text-lg">
+            +{strategy.return12mo}%
           </p>
         </div>
-      </div>
-
-      <p className="text-sm text-muted-foreground mb-4 italic">
-        "{strategy.bio}"
-      </p>
-
-      <div className="mb-4">
-        <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide font-medium">
-          Strategy: {strategy.name}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(strategy.allocation).map(([coin, percent]) => (
-            <span
-              key={coin}
-              className="px-3 py-1 bg-primary/20 text-primary-foreground rounded-full text-sm font-medium"
-            >
-              {percent}% {coin}
-            </span>
-          ))}
+        <div className="text-center px-1">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+            Risk
+          </p>
+          <span
+            className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+              riskColors[strategy.riskLevel]
+            }`}
+          >
+            {strategy.riskLevel}
+          </span>
         </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="text-center p-2 rounded-lg bg-muted/50">
-          <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
-            <TrendingUp className="w-3 h-3" />
-            <span className="text-sm font-bold">+{strategy.return12mo}%</span>
+        <div className="text-center px-1">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+            Win Rate
+          </p>
+          <div className="flex items-center justify-center gap-1 text-gray-200 font-bold text-lg">
+            <Zap className="w-3.5 h-3.5 fill-yellow-500 stroke-yellow-500" />
+            {strategy.winRate}%
           </div>
-          <p className="text-xs text-muted-foreground">12mo return</p>
-        </div>
-        <div className="text-center p-2 rounded-lg bg-muted/50">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <Target className="w-3 h-3" />
-            <span
-              className={`text-sm font-bold px-2 py-0.5 rounded-full ${
-                riskColors[strategy.riskLevel]
-              }`}
-            >
-              {strategy.riskLevel}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">Risk</p>
-        </div>
-        <div className="text-center p-2 rounded-lg bg-muted/50">
-          <div className="flex items-center justify-center gap-1 text-gold mb-1">
-            <Zap className="w-3 h-3" />
-            <span className="text-sm font-bold">{strategy.winRate}%</span>
-          </div>
-          <p className="text-xs text-muted-foreground">Win rate</p>
         </div>
       </div>
 
-      <Button
-        variant="default"
-        className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all hover:scale-[1.02]"
+      {/* CTA Button */}
+      <button
         onClick={() => onCopy(strategy)}
+        className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
       >
-        Copy Strategy ✨
-      </Button>
+        <TrendingUp className="w-4 h-4" />
+        Copy Strategy
+      </button>
     </motion.div>
   );
 }

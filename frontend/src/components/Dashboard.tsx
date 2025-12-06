@@ -345,48 +345,90 @@ export function Dashboard({
               <p className="text-sm">Your first DCA is Monday!</p>
             </div>
           ) : (
-            <div className="space-y-4 max-h-80 overflow-y-auto">
+            <div className="space-y-3 max-h-80 overflow-y-auto">
               {transactions.map((tx, index) => (
                 <motion.div
                   key={tx.week}
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: index * 0.1 }}
-                  className="p-4 rounded-lg bg-muted/30"
+                  className="p-4 bg-[#161B26] border border-slate-800 rounded-lg hover:border-slate-600 transition-colors"
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-green-600">✅</span>
-                    <span className="font-medium text-foreground">
-                      Week {tx.week} DCA Complete
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {new Date(tx.date).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                  <div className="text-sm text-muted-foreground">
-                    <p className="font-medium text-foreground mb-1">Bought:</p>
-                    {Object.entries(tx.purchased).map(([coin, amount]) => (
-                      <p key={coin}>
-                        {(
-                          tx.gasSpent *
-                          (strategy.allocation[coin] / 100)
-                        ).toFixed(0)}{" "}
-                        GAS → {(amount as number).toFixed(4)} {coin}
+                  {/* Transaction Header */}
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-emerald-400 text-sm">✓</span>
+                        <span className="font-semibold text-white text-sm">
+                          Bought {tx.gasSpent} GAS
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        {new Date(tx.date).toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
                       </p>
-                    ))}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-emerald-400 text-sm">
+                        ${(tx.gasSpent * 3.42).toFixed(0)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {tx.gasSpent} GAS
+                      </div>
+                    </div>
                   </div>
-                  <a
-                    href="#"
-                    className="text-xs text-primary hover:underline mt-2 inline-block"
-                  >
-                    View on Neo →
-                  </a>
+
+                  {/* Asset Breakdown */}
+                  <div className="mb-3 pt-2 border-t border-slate-700/50">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1.5">
+                      Purchased
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(tx.purchased).map(([coin, amount]) => (
+                        <span
+                          key={coin}
+                          className="text-xs text-gray-300 bg-slate-800/50 px-2 py-1 rounded"
+                        >
+                          {(amount as number).toFixed(4)} {coin}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Turnkey Transaction Hash */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
+                    <span className="text-xs text-gray-400">Turnkey Tx:</span>
+                    <code className="text-xs bg-slate-900 px-2 py-0.5 rounded text-emerald-400 font-mono">
+                      {tx.txHash}
+                    </code>
+
+                    <a
+                      href={`https://neoxplorer.io/tx/${tx.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline ml-auto flex items-center gap-1"
+                    >
+                      View on Neo Explorer
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
+                      </svg>
+                    </a>
+                  </div>
                 </motion.div>
               ))}
             </div>

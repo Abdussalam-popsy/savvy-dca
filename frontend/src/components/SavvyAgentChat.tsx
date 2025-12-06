@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, Wallet, X, Mic, Volume2 } from "lucide-react";
+import { Send, User, Bot, Wallet, X, Mic, Volume2, Square } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useReactMediaRecorder } from "react-media-recorder";
 
 type Message = {
   role: "user" | "agent";
@@ -14,61 +15,6 @@ interface SavvyAgentChatProps {
   onClose: () => void;
 }
 
-// Speech Recognition types
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onresult:
-    | ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any)
-    | null;
-  onerror:
-    | ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any)
-    | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-}
-
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-  isFinal: boolean;
-}
-
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-
-// Extend Window interface to include webkitSpeechRecognition
-declare global {
-  interface Window {
-    SpeechRecognition: {
-      new (): SpeechRecognition;
-    };
-    webkitSpeechRecognition: {
-      new (): SpeechRecognition;
-    };
-  }
-}
-
 export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -80,74 +26,65 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
   const [input, setInput] = useState("");
   const [walletAddress, setWalletAddress] = useState(DEFAULT_WALLET);
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // React Media Recorder hook for audio recording
+  const { status, startRecording, stopRecording, mediaBlobUrl } =
+    useReactMediaRecorder({ audio: true });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Initialize Speech Recognition once
+  // Handle audio blob when recording finishes
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
+    if (!mediaBlobUrl) return;
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const transcribeAudio = async () => {
+      try {
+        // Fetch the blob from the mediaBlobUrl
+        const blob = await fetch(mediaBlobUrl).then((r) => r.blob());
 
-    if (!SpeechRecognition) {
-      return;
-    }
+        // Create FormData and send to backend
+        const formData = new FormData();
+        formData.append("audio", blob, "recording.webm");
 
-    // Initialize recognition instance once
-    const recognition = new SpeechRecognition();
+        const transcribeResponse = await fetch(
+          "http://localhost:5001/api/transcribe",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
-    // Configure recognition
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    // Set up event handlers
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript;
-      // Append transcript to existing input
-      setInput((prev) => {
-        const trimmed = prev.trim();
-        return trimmed ? `${trimmed} ${transcript}` : transcript;
-      });
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error("Speech recognition error:", event.error);
-      setIsListening(false);
-    };
-
-    // Store in ref to prevent garbage collection
-    recognitionRef.current = recognition;
-
-    // Cleanup on unmount
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          // Ignore errors when stopping
+        if (!transcribeResponse.ok) {
+          throw new Error(
+            `Transcription failed with status ${transcribeResponse.status}`
+          );
         }
-        recognitionRef.current = null;
+
+        const data = await transcribeResponse.json();
+        const transcribedText = data?.text || "";
+
+        if (transcribedText) {
+          // Call sendMessage with the transcribed text
+          sendMessage(transcribedText);
+        }
+      } catch (err) {
+        console.error("Error transcribing audio:", err);
+        // Optionally show error to user
       }
+    };
+
+    transcribeAudio();
+  }, [mediaBlobUrl]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -156,21 +93,11 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
   }, []);
 
   const handleVoiceInput = () => {
-    if (!recognitionRef.current) {
-      alert("Speech recognition not available.");
-      return;
-    }
-
-    // Crucial Logic: If listening, stop; if not, start
-    if (isListening) {
-      recognitionRef.current.stop();
+    // If recording, stop; otherwise, start
+    if (status === "recording") {
+      stopRecording();
     } else {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.error("Error starting recognition:", e);
-        setIsListening(false);
-      }
+      startRecording();
     }
   };
 
@@ -221,11 +148,11 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
     }
   };
 
-  const sendMessage = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+  const sendMessage = async (textOverride?: string) => {
+    const textToSend = textOverride || input.trim();
+    if (!textToSend || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: trimmed };
+    const userMessage: Message = { role: "user", content: textToSend };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -237,7 +164,7 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          user_prompt: trimmed,
+          user_prompt: textToSend,
           wallet_address: walletAddress,
         }),
       });
@@ -386,18 +313,16 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
                   onClick={handleVoiceInput}
                   disabled={isLoading}
                   className={`inline-flex items-center justify-center w-12 h-12 rounded-xl transition-all ${
-                    isListening
+                    status === "recording"
                       ? "bg-red-500/20 border-2 border-red-500 animate-pulse"
                       : "bg-[hsl(var(--muted))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--accent))]"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  <Mic
-                    className={`h-5 w-5 ${
-                      isListening
-                        ? "text-red-500"
-                        : "text-[hsl(var(--foreground))]"
-                    }`}
-                  />
+                  {status === "recording" ? (
+                    <Square className="h-5 w-5 text-red-500" />
+                  ) : (
+                    <Mic className="h-5 w-5 text-[hsl(var(--foreground))]" />
+                  )}
                 </button>
                 <input
                   className="flex-1 bg-[hsl(var(--input))] backdrop-blur-sm text-[hsl(var(--foreground))] rounded-xl px-4 py-2.5 border border-[hsl(var(--border))] focus:outline-none focus:border-[hsl(var(--ring))] focus:ring-2 focus:ring-[hsl(var(--ring))]/20 placeholder:text-[hsl(var(--foreground))]/40 transition-all"
@@ -408,7 +333,7 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
                   disabled={isLoading}
                 />
                 <button
-                  onClick={sendMessage}
+                  onClick={() => sendMessage()}
                   disabled={isLoading || !input.trim()}
                   className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-[hsl(var(--primary))] to-cyan-500 hover:from-[hsl(var(--primary))]/90 hover:to-cyan-400 text-white rounded-xl shadow-lg shadow-[hsl(var(--primary))]/30 hover:shadow-[hsl(var(--primary))]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[hsl(var(--primary))]/30"
                 >

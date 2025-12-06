@@ -13,9 +13,13 @@ python-dotenv==1.0.0
 
 # Web3 and blockchain
 web3==6.15.1
+eth-account==0.10.0
 
 # Text-to-speech
 elevenlabs==1.0.0
+
+# Speech recognition
+SpeechRecognition==3.10.0
 
 # Utilities
 requests==2.31.0

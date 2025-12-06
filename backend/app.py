@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 """
 Savvy - Autonomous DCA Agent
 Main Flask application with CORS enabled
@@ -8,13 +11,9 @@ import tempfile
 from io import BytesIO
 from flask import Flask, send_file, request, jsonify
 from flask_cors import CORS
-from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from elevenlabs.client import ElevenLabs
 import speech_recognition as sr
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -44,12 +43,14 @@ from routes.status import status_bp
 from routes.simulate import simulate_bp
 from routes.funds import funds_bp
 from routes.history import history_bp
+from routes.chat import chat_bp
 
 app.register_blueprint(goal_bp, url_prefix='/api')
 app.register_blueprint(status_bp, url_prefix='/api')
 app.register_blueprint(simulate_bp, url_prefix='/api')
 app.register_blueprint(funds_bp, url_prefix='/api')
 app.register_blueprint(history_bp, url_prefix='/api')
+app.register_blueprint(chat_bp, url_prefix='/api')
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

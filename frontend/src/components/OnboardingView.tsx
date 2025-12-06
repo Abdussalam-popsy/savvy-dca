@@ -42,8 +42,7 @@ export function OnboardingView({
         transition={{ delay: 0.2 }}
         className="text-4xl md:text-5xl font-bold text-foreground mb-4 max-w-2xl leading-tight"
       >
-        Copy successful investors,{" "}
-        <span className="text-coral">automatically</span>
+        Stop panic-selling. Start building wealth.
       </motion.h1>
 
       <motion.p
@@ -52,9 +51,27 @@ export function OnboardingView({
         transition={{ delay: 0.3 }}
         className="text-lg text-muted-foreground mb-12 max-w-xl"
       >
-        Set up your DCA strategy in 30 seconds using voice or clicks. Let Savvy
-        handle the rest.
+        Your AI coach enforces DCA discipline—even when markets crash.
       </motion.p>
+
+      <motion.div
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.35 }}
+        className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground mb-8"
+      >
+        <span className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+          Powered by SpoonOS
+        </span>
+        <span>•</span>
+        <span className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          Secured by Turnkey
+        </span>
+        <span>•</span>
+        <span className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+          Built on Neo
+        </span>
+      </motion.div>
 
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -89,26 +106,6 @@ export function OnboardingView({
           <MousePointer2 className="w-5 h-5" />
           Browse Strategies
         </Button>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="mt-16 flex items-center gap-8 text-sm text-muted-foreground"
-      >
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span>Autonomous weekly buys</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span>Copy proven strategies</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span>No emotions, just discipline</span>
-        </div>
       </motion.div>
     </motion.div>
   );

@@ -314,6 +314,8 @@ const Index = () => {
         totalValue={portfolio.portfolio.totalValue}
         onAddMoney={() => setModal("addMoney")}
         hasStrategy={portfolio.hasStrategy}
+        currentView={view}
+        onViewChange={setView}
       />
 
       <main className="pt-20">

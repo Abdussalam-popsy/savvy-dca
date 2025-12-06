@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+venv/
+env/
+spoon-core/
+
+# Environment variables (CRITICAL - DON'T COMMIT)
+.env
+.env.local
+backend/.env
+frontend/.env.local
+**/.env
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+frontend/.next/
+frontend/out/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*

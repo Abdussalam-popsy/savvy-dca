@@ -1,0 +1,258 @@
+import { motion } from 'framer-motion';
+import { TrendingUp, TrendingDown, Clock, Wallet, FastForward, AlertTriangle } from 'lucide-react';
+import { Button } from './ui/button';
+import { Progress } from './ui/progress';
+import type { PortfolioData, Transaction } from '@/lib/strategies';
+
+interface DashboardProps {
+  portfolio: PortfolioData;
+  transactions: Transaction[];
+  onAddMoney: () => void;
+  onSimulateWeek: () => void;
+  onWithdraw: () => void;
+  isSimulating: boolean;
+}
+
+export function Dashboard({ 
+  portfolio, 
+  transactions, 
+  onAddMoney, 
+  onSimulateWeek, 
+  onWithdraw,
+  isSimulating 
+}: DashboardProps) {
+  const { strategy, portfolio: p, nextDCA, dcaPoolBalance } = portfolio;
+  
+  if (!strategy) return null;
+
+  const progress = strategy.totalWeeks 
+    ? (strategy.weeksCompleted / strategy.totalWeeks) * 100 
+    : (strategy.weeksCompleted / 52) * 100; // Default to 52 for display
+
+  const isProfitable = p.profitLoss >= 0;
+  const canSimulate = dcaPoolBalance >= strategy.weeklyAmount;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="py-8 px-6"
+    >
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Portfolio Overview Card */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-card rounded-2xl shadow-soft border border-border p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📈</span>
+              <span className="font-medium text-foreground">
+                Following: {strategy.name} by {strategy.creator}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              Next DCA: {new Date(nextDCA).toLocaleDateString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' })}
+            </div>
+          </div>
+
+          <div className="h-px bg-border mb-6" />
+
+          <div className="mb-6">
+            <p className="text-sm text-muted-foreground mb-1">
+              Week {strategy.weeksCompleted} of {strategy.totalWeeks || '∞'} • £{p.costBasis.toLocaleString()} invested
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">Your Holdings</h4>
+            <div className="space-y-2">
+              {Object.entries(p.holdings).map(([coin, amount]) => {
+                const value = p.holdingsValue[coin] || 0;
+                const change = p.holdingsChange[coin] || 0;
+                const allocation = strategy.allocation[coin] || 0;
+                
+                return (
+                  <div key={coin} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-foreground">
+                        {amount.toFixed(4)} {coin}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        ({allocation}%)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">£{value.toFixed(0)}</span>
+                      <span className={`text-xs flex items-center gap-0.5 ${change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 mb-6">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Value</p>
+              <motion.p 
+                key={p.totalValue}
+                initial={{ scale: 1.05 }}
+                animate={{ scale: 1 }}
+                className="text-3xl font-bold text-foreground"
+              >
+                £{p.totalValue.toLocaleString()}
+              </motion.p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Profit/Loss</p>
+              <p className={`text-xl font-bold flex items-center gap-1 ${isProfitable ? 'text-green-600' : 'text-red-500'}`}>
+                {isProfitable ? '+' : ''}£{p.profitLoss.toFixed(0)} 
+                <span className="text-sm">({isProfitable ? '+' : ''}{p.profitLossPercent.toFixed(1)}%)</span>
+                <span>{isProfitable ? '💚' : '🔴'}</span>
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium text-foreground">
+                {progress.toFixed(0)}%
+              </span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+        </motion.div>
+
+        {/* DCA Pool Balance */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-card rounded-2xl shadow-soft border border-border p-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">DCA Pool Balance</p>
+                <p className="text-xl font-bold text-foreground">{dcaPoolBalance} GAS</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Runway</p>
+              <p className={`font-bold ${dcaPoolBalance < strategy.weeklyAmount * 2 ? 'text-destructive' : 'text-foreground'}`}>
+                {Math.floor(dcaPoolBalance / strategy.weeklyAmount)} weeks
+                {dcaPoolBalance < strategy.weeklyAmount * 2 && ' ⚠️'}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-3 gap-4"
+        >
+          <Button 
+            variant="default" 
+            size="lg" 
+            onClick={onAddMoney} 
+            className="h-14 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg"
+          >
+            <Wallet className="w-5 h-5 mr-2" />
+            Add Money
+          </Button>
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={onSimulateWeek} 
+            disabled={!canSimulate || isSimulating}
+            className={`h-14 border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-100 hover:bg-emerald-950/30 ${canSimulate && !isSimulating ? 'animate-pulse-gentle' : ''}`}
+          >
+            <FastForward className="w-5 h-5 mr-2" />
+            {isSimulating ? 'Simulating...' : 'Simulate Week'}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={onWithdraw} 
+            className="h-14 text-red-400 hover:bg-red-950/30 border-red-900/30"
+          >
+            <AlertTriangle className="w-5 h-5 mr-2" />
+            Withdraw
+          </Button>
+        </motion.div>
+
+        {/* Transaction History */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-card rounded-2xl shadow-soft border border-border p-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-lg">📊</span>
+            <h3 className="font-bold text-foreground">Recent Activity</h3>
+          </div>
+
+          <div className="h-px bg-border mb-4" />
+
+          {transactions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No activity yet.</p>
+              <p className="text-sm">Your first DCA is Monday!</p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-80 overflow-y-auto">
+              {transactions.map((tx, index) => (
+                <motion.div
+                  key={tx.week}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-4 rounded-lg bg-muted/30"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-green-600">✅</span>
+                    <span className="font-medium text-foreground">Week {tx.week} DCA Complete</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {new Date(tx.date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'short', 
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">Bought:</p>
+                    {Object.entries(tx.purchased).map(([coin, amount]) => (
+                      <p key={coin}>
+                        {(tx.gasSpent * (strategy.allocation[coin] / 100)).toFixed(0)} GAS → {(amount as number).toFixed(4)} {coin}
+                      </p>
+                    ))}
+                  </div>
+                  <a href="#" className="text-xs text-primary hover:underline mt-2 inline-block">
+                    View on Neo →
+                  </a>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}

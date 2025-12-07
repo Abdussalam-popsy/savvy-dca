@@ -42,7 +42,9 @@ export function VoiceModal({ onClose, onResult }: VoiceModalProps) {
         formData.append("audio", wavBlob, "recording.wav");
 
         const transcribeResponse = await fetch(
-          "http://localhost:5001/api/transcribe",
+          `${
+            import.meta.env.VITE_API_URL || "http://localhost:5001"
+          }/api/transcribe`,
           {
             method: "POST",
             body: formData,

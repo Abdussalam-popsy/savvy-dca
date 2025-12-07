@@ -43,15 +43,16 @@ export function SetupModal({ strategy, onClose, onSetup }: SetupModalProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
         onClick={e => e.stopPropagation()}
-        className="bg-card rounded-2xl shadow-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
+        className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl max-w-md w-full p-8 max-h-[90vh] overflow-y-auto relative"
       >
         <AnimatePresence mode="wait">
           {showSuccess ? (
@@ -59,128 +60,150 @@ export function SetupModal({ strategy, onClose, onSetup }: SetupModalProps) {
               key="success"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="text-center py-8"
+              className="text-center py-12"
             >
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", delay: 0.1 }}
-                className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4"
+                className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6"
               >
-                <Check className="w-10 h-10 text-green-600" />
+                <Check className="w-12 h-12 text-emerald-500" />
               </motion.div>
-              <h3 className="text-xl font-bold text-foreground mb-2">
+              <h3 className="text-2xl font-bold text-white mb-3">
                 Strategy Activated! 🎉
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-slate-400 text-lg">
                 First DCA: Monday 9 AM
               </p>
             </motion.div>
           ) : (
-            <motion.div key="form">
-              <div className="flex items-center justify-between mb-6">
-                <Button variant="ghost" size="sm" onClick={onClose}>
-                  <ArrowLeft className="w-4 h-4 mr-1" />
-                  Back
-                </Button>
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                  <X className="w-4 h-4" />
-                </Button>
+            <motion.div key="form" className="space-y-8">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <button 
+                  onClick={onClose}
+                  className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  <span>Back</span>
+                </button>
+                <button 
+                  onClick={onClose}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-2xl">
+              {/* Strategy Info */}
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/20">
                   {strategy.avatar}
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground">Set Up: {strategy.name}</h3>
-                  <p className="text-sm text-muted-foreground">by {strategy.creator}</p>
+                  <h3 className="text-xl font-bold text-white">Set Up: {strategy.name}</h3>
+                  <p className="text-slate-400">by {strategy.creator}</p>
                 </div>
               </div>
 
-              <div className="space-y-6">
+              {/* Weekly Amount Slider */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-white font-medium">Weekly Amount</label>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-white">{weeklyAmount}</span>
+                    <span className="text-slate-400">GAS</span>
+                  </div>
+                </div>
+                <div className="relative pt-2 pb-4">
+                  <Slider
+                    value={[weeklyAmount]}
+                    onValueChange={(v) => setWeeklyAmount(v[0])}
+                    min={10}
+                    max={1000}
+                    step={10}
+                    className="cursor-pointer"
+                  />
+                  <div 
+                    className={`w-4 h-4 rounded-full bg-emerald-500 absolute top-1 pointer-events-none transition-all shadow-[0_0_10px_rgba(16,185,129,0.5)]`}
+                    style={{ 
+                      left: `${((weeklyAmount - 10) / (1000 - 10)) * 100}%`,
+                      transform: 'translateX(-50%)'
+                    }} 
+                  />
+                </div>
+              </div>
+
+              {/* Duration Options */}
+              <div className="space-y-4">
+                <label className="text-white font-medium">Duration</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[12, 26, 52, null].map((d) => (
+                    <button
+                      key={d ?? 'forever'}
+                      onClick={() => setDuration(d)}
+                      className={`py-3 px-4 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        duration === d
+                          ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-[1.02]'
+                          : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-white border border-transparent hover:border-white/5'
+                      }`}
+                    >
+                      {d ? `${d} weeks` : 'Forever'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Strict Mode Toggle */}
+              <div className="flex items-center justify-between p-1">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-3">
-                    Weekly Amount
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <Slider
-                      value={[weeklyAmount]}
-                      onValueChange={(v) => setWeeklyAmount(v[0])}
-                      min={10}
-                      max={1000}
-                      step={10}
-                      className="flex-1"
-                    />
-                    <div className="w-24 text-right">
-                      <span className="text-xl font-bold text-foreground">{weeklyAmount}</span>
-                      <span className="text-muted-foreground ml-1">GAS</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-3">
-                    Duration
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[12, 26, 52, null].map((d) => (
-                      <button
-                        key={d ?? 'forever'}
-                        onClick={() => setDuration(d)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                          duration === d
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        {d ? `${d} weeks` : 'Forever'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                  <div>
-                    <p className="font-medium text-foreground">Strict Mode</p>
-                    <p className="text-xs text-muted-foreground">
-                      Blocks withdrawals during DCA
-                    </p>
-                  </div>
-                  <Switch checked={strictMode} onCheckedChange={setStrictMode} />
-                </div>
-
-                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                  <p className="text-sm font-medium text-foreground mb-2">
-                    Every Monday, Savvy will buy:
+                  <p className="text-white font-medium mb-1">Strict Mode</p>
+                  <p className="text-xs text-slate-400">
+                    Blocks withdrawals during DCA
                   </p>
-                  <ul className="space-y-1">
-                    {Object.entries(strategy.allocation).map(([coin, percent]) => (
-                      <li key={coin} className="text-sm text-muted-foreground flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-coral" />
-                        {Math.round(weeklyAmount * percent / 100)} GAS → {coin}
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-
-                <Button 
-                  variant="coral" 
-                  className="w-full" 
-                  size="lg"
-                  onClick={handleSetup}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Setting up...
-                    </>
-                  ) : (
-                    'Start DCA ✨'
-                  )}
-                </Button>
+                <Switch 
+                  checked={strictMode} 
+                  onCheckedChange={setStrictMode}
+                  className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-slate-700"
+                />
               </div>
+
+              {/* Summary Card */}
+              <div className="p-6 rounded-2xl bg-slate-800/50 border border-white/5 backdrop-blur-sm">
+                <p className="text-sm text-white font-medium mb-4">
+                  Every Monday, Savvy will buy:
+                </p>
+                <ul className="space-y-3">
+                  {Object.entries(strategy.allocation).map(([coin, percent]) => (
+                    <li key={coin} className="text-sm text-slate-300 flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                        {Math.round(weeklyAmount * percent / 100)} GAS
+                      </span>
+                      <span className="text-slate-500">→</span>
+                      <span className="font-medium text-white">{coin}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Action Button */}
+              <Button 
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white h-14 rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:scale-[1.02] transition-all duration-200"
+                onClick={handleSetup}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Setting up...
+                  </>
+                ) : (
+                  'Start DCA ✨'
+                )}
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>

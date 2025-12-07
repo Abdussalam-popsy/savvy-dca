@@ -53,7 +53,9 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
         formData.append("audio", blob, "recording.webm");
 
         const transcribeResponse = await fetch(
-          "http://localhost:5001/api/transcribe",
+          `${
+            import.meta.env.VITE_API_URL || "http://localhost:5001"
+          }/api/transcribe`,
           {
             method: "POST",
             body: formData,
@@ -105,13 +107,16 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
     try {
       setIsSpeaking(true);
 
-      const res = await fetch("http://localhost:5001/api/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/tts`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text }),
+        }
+      );
 
       if (!res.ok) {
         throw new Error(`TTS request failed with status ${res.status}`);
@@ -158,16 +163,21 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5001/api/agent/action", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_prompt: textToSend,
-          wallet_address: walletAddress,
-        }),
-      });
+      const res = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:5001"
+        }/api/agent/action`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_prompt: textToSend,
+            wallet_address: walletAddress,
+          }),
+        }
+      );
 
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);

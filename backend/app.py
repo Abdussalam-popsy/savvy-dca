@@ -14,6 +14,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from elevenlabs.client import ElevenLabs
 import speech_recognition as sr
+from agent.dca_agent import DCAAgent
 
 # Configure logging
 logging.basicConfig(
@@ -125,6 +126,28 @@ def transcribe_audio():
     except Exception as e:
         logger.error(f'Error in transcription endpoint: {e}', exc_info=True)
         return jsonify({'error': f'Failed to transcribe: {str(e)}'}), 500
+
+@app.route('/api/agent/reset', methods=['POST'])
+def agent_reset():
+    """Reset agent state - DELETE ALL DATA (for demo purposes)"""
+    try:
+        state_file = app.config['STATE_FILE']
+        
+        # Delete the state file if it exists
+        if os.path.exists(state_file):
+            os.remove(state_file)
+            logger.info(f"Deleted state file: {state_file}")
+        
+        # Initialize a fresh agent to recreate the initial state
+        agent = DCAAgent(state_file=state_file)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Agent reset successfully. All data cleared.'
+        })
+    except Exception as e:
+        logger.error(f"Error resetting agent: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.errorhandler(404)
 def not_found(error):

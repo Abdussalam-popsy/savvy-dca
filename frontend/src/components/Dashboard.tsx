@@ -64,6 +64,31 @@ export function Dashboard({
   const isProfitable = p.profitLoss >= 0;
   const canSimulate = dcaPoolBalance >= strategy.weeklyAmount;
 
+  const handleReset = async () => {
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      "⚠️ This will DELETE ALL your data including wallet, portfolio, and history. Continue?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("http://localhost:5001/api/agent/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("✅ Reset successful! Reloading...");
+        window.location.reload(); // Refresh to show onboarding
+      }
+    } catch (error) {
+      alert("❌ Reset failed: " + (error as Error).message);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -434,6 +459,29 @@ export function Dashboard({
             </div>
           )}
         </motion.div>
+
+        {/* Danger Zone */}
+        <div className="mt-12 pt-8 border-t border-red-900/20">
+          <div className="bg-red-950/20 border border-red-900/30 rounded-xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl">⚠️</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-red-400 font-semibold mb-1">Danger Zone</h3>
+                <p className="text-red-300/60 text-sm mb-4">
+                  Reset all data and start fresh. This action cannot be undone.
+                </p>
+                <button
+                  onClick={handleReset}
+                  className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/50 px-6 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105"
+                >
+                  Reset Everything
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </motion.div>
   );

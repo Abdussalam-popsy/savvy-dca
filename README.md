@@ -2,6 +2,27 @@
 
 An intelligent Dollar Cost Averaging (DCA) agent that helps users invest consistently and build wealth through automated, disciplined investing strategies on the Neo blockchain.
 
+
+## The Problem
+Crypto investors lose money from emotional decisions: panic selling during dips, inconsistent DCA schedules.
+
+## The Solution  
+Savvy is an AI agent that enforces weekly Dollar Cost Averaging with strict mode - removing emotional decisions entirely.
+
+## Key Features
+- 🎙️ Voice Commands - Natural language investment setup
+- 🤖 Autonomous Weekly DCA - SpoonOS agent handles investments  
+- 🔒 Strict Mode - Locks funds to prevent panic withdrawals
+- ⛓️ Neo Blockchain - Secure, automated transactions
+- 📊 Portfolio Tracking - Real-time balance updates
+
+## Tech Stack
+- Frontend: React + TypeScript + Tailwind
+- Backend: Flask + SpoonOS Agent Framework  
+- Blockchain: Neo N3 + Turnkey Wallets
+- Voice: Google Speech Recognition
+
+
 ## Features
 
 - 🤖 **AI-Powered Agent**: SpoonOS-powered agent that provides investment coaching and strategy recommendations
@@ -10,6 +31,17 @@ An intelligent Dollar Cost Averaging (DCA) agent that helps users invest consist
 - 🎤 **Voice Interface**: Voice-to-text and text-to-speech capabilities for hands-free interaction
 - 📈 **Portfolio Management**: Track your investments, view transaction history, and monitor performance
 
+
+## Live Demo
+🌐 [https://savvy-dca.vercel.app]([url](https://savvy-dca.vercel.app))
+
+## Video Demo
+[Insert YouTube/Loom link]
+
+Built for Encode Club x Neo x SpoonOS Hackathon (Dec 2024)
+
+
+------------------
 ## SpoonOS Integration - Testing Guide
 
 This project demonstrates three levels of SpoonOS integration:

@@ -36,7 +36,7 @@ Savvy is an AI agent that enforces weekly Dollar Cost Averaging with strict mode
 🌐 [https://savvy-dca.vercel.app]([url](https://savvy-dca.vercel.app))
 
 ## Video Demo
-[Insert YouTube/Loom link]
+[Insert YouTube/Loom link]([url](https://youtu.be/r2H_15KqFks))
 
 Built at Encode Club Hackathon using Neo x SpoonOS x ELevenLabs (Dec 5-7, 2025)
 

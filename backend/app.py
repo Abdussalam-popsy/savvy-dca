@@ -8,6 +8,7 @@ Main Flask application with CORS enabled
 import os
 import logging
 import tempfile
+import requests
 from io import BytesIO
 from flask import Flask, send_file, request, jsonify
 from flask_cors import CORS
@@ -34,6 +35,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-pro
 app.config['NEO_RPC_URL'] = os.getenv('NEO_RPC_URL', 'https://testnet.neox.network:443')
 app.config['NEO_NETWORK'] = os.getenv('NEO_NETWORK', 'testnet')
 app.config['STATE_FILE'] = os.getenv('STATE_FILE', 'data/agent_state.json')
+app.config['ELEVENLABS_API_KEY'] = os.getenv('ELEVENLABS_API_KEY', 'k_0aff0719aaa240228fff26743da3ee791527ad34e0264f0a')
+app.config['VOICE_ID'] = os.getenv('VOICE_ID', '21m00Tcm4TlvDq8ikWAM')
 
 # Ensure data directory exists
 os.makedirs(os.path.dirname(app.config['STATE_FILE']), exist_ok=True)
@@ -79,6 +82,59 @@ def text_to_speech():
         return send_file(BytesIO(audio_data), mimetype='audio/mpeg')
     except Exception as e:
         logger.error(f'Error in TTS endpoint: {e}', exc_info=True)
+        return jsonify({'error': f'Failed to generate audio: {str(e)}'}), 500
+
+@app.route('/api/savvy/speak', methods=['POST'])
+def savvy_speak():
+    """
+    ElevenLabs text-to-speech endpoint for Savvy agent
+    """
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({'error': 'Missing required field: text'}), 400
+        
+        text = data.get('text')
+        if not text or not isinstance(text, str):
+            return jsonify({'error': 'Text must be a non-empty string'}), 400
+        
+        api_key = app.config['ELEVENLABS_API_KEY']
+        voice_id = app.config['VOICE_ID']
+        
+        if not api_key:
+            return jsonify({'error': 'ElevenLabs API key not configured'}), 500
+        
+        # Call ElevenLabs API
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        headers = {
+            'Accept': 'audio/mpeg',
+            'xi-api-key': api_key,
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            'text': text,
+            'model_id': 'eleven_monolingual_v1',
+            'voice_settings': {
+                'stability': 0.6,
+                'similarity_boost': 0.8
+            }
+        }
+        
+        response = requests.post(url, json=payload, headers=headers)
+        
+        if response.status_code != 200:
+            logger.error(f'ElevenLabs API error: {response.status_code} - {response.text}')
+            return jsonify({'error': f'ElevenLabs API error: {response.status_code}'}), 500
+        
+        # Return audio as BytesIO
+        audio_data = BytesIO(response.content)
+        return send_file(audio_data, mimetype='audio/mpeg')
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f'Error calling ElevenLabs API: {e}', exc_info=True)
+        return jsonify({'error': f'Failed to call ElevenLabs API: {str(e)}'}), 500
+    except Exception as e:
+        logger.error(f'Error in savvy_speak endpoint: {e}', exc_info=True)
         return jsonify({'error': f'Failed to generate audio: {str(e)}'}), 500
 
 @app.route('/api/transcribe', methods=['POST'])

@@ -30,6 +30,8 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
   const chatRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastPlayedMessageRef = useRef<string>("");
+  const currentAudioUrlRef = useRef<string | null>(null);
 
   // React Media Recorder hook for audio recording
   const { status, startRecording, stopRecording, mediaBlobUrl } =
@@ -84,12 +86,39 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
     transcribeAudio();
   }, [mediaBlobUrl]);
 
+  // Auto-play agent messages with voice
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage.role === "agent" &&
+      lastMessage.content &&
+      lastMessage.content !== lastPlayedMessageRef.current
+    ) {
+      // Mark as played
+      lastPlayedMessageRef.current = lastMessage.content;
+
+      // Small delay to ensure message is rendered
+      const timer = setTimeout(() => {
+        playSavvyVoice(lastMessage.content);
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [messages]);
+
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = "";
         audioRef.current = null;
+      }
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+        currentAudioUrlRef.current = null;
       }
     };
   }, []);
@@ -103,20 +132,18 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
     }
   };
 
-  const playAudioResponse = async (text: string) => {
+  const playSavvyVoice = async (text: string) => {
     try {
       setIsSpeaking(true);
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5001"}/api/tts`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text }),
-        }
-      );
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001";
+      const res = await fetch(`${apiUrl}/api/savvy/speak`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
 
       if (!res.ok) {
         throw new Error(`TTS request failed with status ${res.status}`);
@@ -125,31 +152,37 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
 
+      // Clean up previous URL if exists
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+      }
+      currentAudioUrlRef.current = url;
+
       // Stop any currently playing audio
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current = null;
+        audioRef.current.src = "";
       }
 
-      const audio = new Audio(url);
-      audioRef.current = audio;
+      // Wait a tick for audio element to be available in DOM
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      audio.onended = () => {
-        setIsSpeaking(false);
+      if (!audioRef.current) {
         URL.revokeObjectURL(url);
-        audioRef.current = null;
-      };
+        currentAudioUrlRef.current = null;
+        throw new Error("Audio element not available");
+      }
 
-      audio.onerror = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(url);
-        audioRef.current = null;
-      };
-
-      await audio.play();
+      // Set audio source and play
+      audioRef.current.src = url;
+      await audioRef.current.play();
     } catch (err) {
       console.error("Error playing audio:", err);
       setIsSpeaking(false);
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+        currentAudioUrlRef.current = null;
+      }
     }
   };
 
@@ -188,15 +221,23 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
 
       const agentMessage: Message = { role: "agent", content: agentReply };
       setMessages((prev) => [...prev, agentMessage]);
-
-      // Automatically play agent response
-      await playAudioResponse(agentReply);
     } catch (err: any) {
+      console.error("Error sending message:", err);
+      let errorContent = "Something went wrong contacting the agent.";
+
+      if (
+        err?.message?.includes("Failed to fetch") ||
+        err?.message?.includes("NetworkError")
+      ) {
+        errorContent =
+          "Unable to connect to the backend. Please make sure the server is running on http://localhost:5001";
+      } else if (err?.message) {
+        errorContent = `Error: ${err.message}`;
+      }
+
       const errorMessage: Message = {
         role: "agent",
-        content:
-          err?.message ||
-          "Something went wrong contacting the agent. Please try again.",
+        content: errorContent,
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -214,145 +255,261 @@ export function SavvyAgentChat({ isOpen, onClose }: SavvyAgentChatProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
-          <div className="w-[400px] h-[600px] bg-[hsl(var(--card))] backdrop-blur-xl border border-[hsl(var(--border))] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-            {/* Header */}
-            <header className="flex items-center justify-between p-4 border-b border-[hsl(var(--border))]">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-[hsl(var(--primary))] to-cyan-400 bg-clip-text text-transparent">
-                    Savvy AI
-                  </h1>
-                  <div className="absolute -right-2 -top-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                </div>
-                {isSpeaking && (
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ repeat: Infinity, duration: 1 }}
-                    className="flex items-center gap-1 text-[hsl(var(--primary))]"
-                  >
-                    <Volume2 className="h-4 w-4" />
-                  </motion.div>
-                )}
-              </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 hover:bg-[hsl(var(--muted))] rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5 text-[hsl(var(--foreground))]/70" />
-              </button>
-            </header>
+        <>
+          {/* Backdrop - Blurred and Darkened Background */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md"
+            onClick={onClose}
+          />
 
-            {/* Wallet Address Input */}
-            <div className="px-4 py-2 border-b border-[hsl(var(--border))]">
-              <div className="flex items-center gap-2 bg-[hsl(var(--input))] rounded-lg px-3 py-2 border border-[hsl(var(--border))]">
-                <Wallet className="h-4 w-4 text-[hsl(var(--primary))]" />
-                <input
-                  className="bg-transparent w-full text-sm text-[hsl(var(--foreground))] focus:outline-none placeholder:text-[hsl(var(--foreground))]/40"
-                  placeholder="Wallet Address"
-                  value={walletAddress}
-                  onChange={(e) => setWalletAddress(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Messages Area */}
+          {/* Modal */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+          >
             <div
-              ref={chatRef}
-              className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-[hsl(var(--background))] to-[hsl(var(--card))]"
+              className="w-[400px] h-[600px] bg-[hsl(var(--card))] backdrop-blur-xl border border-[hsl(var(--border))] rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-              <AnimatePresence initial={false}>
-                {messages.map((msg, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex ${
-                      msg.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`flex items-start gap-2 max-w-[85%] ${
-                        msg.role === "user" ? "flex-row-reverse" : "flex-row"
+              {/* Header */}
+              <header className="flex items-center justify-between p-4 border-b border-[hsl(var(--border))] bg-gradient-to-r from-[hsl(var(--card))] to-[hsl(var(--card))]/80">
+                <div className="flex items-center gap-3 flex-1">
+                  {/* Clover Icon with Animation */}
+                  <div className="relative">
+                    {isSpeaking ? (
+                      <motion.div
+                        animate={{
+                          scale: [1, 1.2, 1],
+                          rotate: [0, 10, -10, 0],
+                        }}
+                        transition={{
+                          repeat: Infinity,
+                          duration: 1.2,
+                          ease: "easeInOut",
+                        }}
+                        className="relative w-10 h-10 flex items-center justify-center"
+                      >
+                        {/* Pulsing background ring */}
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.8, 1],
+                            opacity: [0.5, 0, 0.5],
+                          }}
+                          transition={{
+                            repeat: Infinity,
+                            duration: 1.2,
+                            ease: "easeOut",
+                          }}
+                          className="absolute inset-0 bg-[hsl(var(--primary))] rounded-full blur-lg"
+                        />
+                        {/* Second pulse ring */}
+                        <motion.div
+                          animate={{
+                            scale: [1, 2.2, 1],
+                            opacity: [0.3, 0, 0.3],
+                          }}
+                          transition={{
+                            repeat: Infinity,
+                            duration: 1.2,
+                            delay: 0.3,
+                            ease: "easeOut",
+                          }}
+                          className="absolute inset-0 bg-cyan-400 rounded-full blur-xl"
+                        />
+                        {/* Clover icon */}
+                        <div className="relative z-10 text-2xl">🍀</div>
+                      </motion.div>
+                    ) : (
+                      <div className="w-10 h-10 flex items-center justify-center text-2xl opacity-70">
+                        🍀
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Title and Status */}
+                  <div className="flex-1">
+                    <h1 className="text-xl font-bold bg-gradient-to-r from-[hsl(var(--primary))] to-cyan-400 bg-clip-text text-transparent">
+                      Savvy AI
+                    </h1>
+                    <div className="flex items-center gap-2">
+                      {isSpeaking ? (
+                        <motion.p
+                          animate={{ opacity: [0.7, 1, 0.7] }}
+                          transition={{
+                            repeat: Infinity,
+                            duration: 1.5,
+                          }}
+                          className="text-xs font-medium text-[hsl(var(--primary))] flex items-center gap-1"
+                        >
+                          <span className="text-base">🎙️</span>
+                          <span>Speaking...</span>
+                        </motion.p>
+                      ) : (
+                        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                          Your DCA Coach
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Online indicator */}
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    {isSpeaking && (
+                      <motion.div
+                        animate={{
+                          scale: [1, 2, 1],
+                          opacity: [0.5, 0, 0.5],
+                        }}
+                        transition={{
+                          repeat: Infinity,
+                          duration: 1.5,
+                        }}
+                        className="absolute inset-0 w-2 h-2 bg-green-400 rounded-full"
+                      />
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="p-1.5 hover:bg-[hsl(var(--muted))] rounded-lg transition-colors ml-2"
+                >
+                  <X className="h-5 w-5 text-[hsl(var(--foreground))]/70" />
+                </button>
+              </header>
+
+              {/* Wallet Address Input */}
+              <div className="px-4 py-2 border-b border-[hsl(var(--border))]">
+                <div className="flex items-center gap-2 bg-[hsl(var(--input))] rounded-lg px-3 py-2 border border-[hsl(var(--border))]">
+                  <Wallet className="h-4 w-4 text-[hsl(var(--primary))]" />
+                  <input
+                    className="bg-transparent w-full text-sm text-[hsl(var(--foreground))] focus:outline-none placeholder:text-[hsl(var(--foreground))]/40"
+                    placeholder="Wallet Address"
+                    value={walletAddress}
+                    onChange={(e) => setWalletAddress(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Messages Area */}
+              <div
+                ref={chatRef}
+                className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-[hsl(var(--background))] to-[hsl(var(--card))]"
+              >
+                <AnimatePresence initial={false}>
+                  {messages.map((msg, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.3 }}
+                      className={`flex ${
+                        msg.role === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {/* Avatar */}
                       <div
-                        className={`p-2 rounded-full border flex-shrink-0 ${
-                          msg.role === "user"
-                            ? "border-blue-500/50 bg-blue-500/20"
-                            : "border-[hsl(var(--border))] bg-[hsl(var(--muted))]"
+                        className={`flex items-start gap-2 max-w-[85%] ${
+                          msg.role === "user" ? "flex-row-reverse" : "flex-row"
                         }`}
                       >
-                        {msg.role === "user" ? (
-                          <User className="h-4 w-4 text-blue-300" />
-                        ) : (
-                          <Bot className="h-4 w-4 text-[hsl(var(--primary))]" />
-                        )}
-                      </div>
+                        {/* Avatar */}
+                        <div
+                          className={`p-2 rounded-full border flex-shrink-0 ${
+                            msg.role === "user"
+                              ? "border-blue-500/50 bg-blue-500/20"
+                              : "border-[hsl(var(--border))] bg-[hsl(var(--muted))]"
+                          }`}
+                        >
+                          {msg.role === "user" ? (
+                            <User className="h-4 w-4 text-blue-300" />
+                          ) : (
+                            <Bot className="h-4 w-4 text-[hsl(var(--primary))]" />
+                          )}
+                        </div>
 
-                      {/* Message Bubble */}
-                      <div
-                        className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
-                          msg.role === "user"
-                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
-                            : "bg-[hsl(var(--muted))] backdrop-blur-sm text-[hsl(var(--foreground))] border border-[hsl(var(--border))] shadow-lg"
-                        }`}
-                      >
-                        {msg.content}
+                        {/* Message Bubble */}
+                        <div
+                          className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
+                            msg.role === "user"
+                              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
+                              : "bg-[hsl(var(--muted))] backdrop-blur-sm text-[hsl(var(--foreground))] border border-[hsl(var(--border))] shadow-lg"
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Area */}
-            <div className="p-4 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleVoiceInput}
-                  disabled={isLoading}
-                  className={`inline-flex items-center justify-center w-12 h-12 rounded-xl transition-all ${
-                    status === "recording"
-                      ? "bg-red-500/20 border-2 border-red-500 animate-pulse"
-                      : "bg-[hsl(var(--muted))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--accent))]"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {status === "recording" ? (
-                    <Square className="h-5 w-5 text-red-500" />
-                  ) : (
-                    <Mic className="h-5 w-5 text-[hsl(var(--foreground))]" />
-                  )}
-                </button>
-                <input
-                  className="flex-1 bg-[hsl(var(--input))] backdrop-blur-sm text-[hsl(var(--foreground))] rounded-xl px-4 py-2.5 border border-[hsl(var(--border))] focus:outline-none focus:border-[hsl(var(--ring))] focus:ring-2 focus:ring-[hsl(var(--ring))]/20 placeholder:text-[hsl(var(--foreground))]/40 transition-all"
-                  placeholder="Ask the Savvy agent..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={() => sendMessage()}
-                  disabled={isLoading || !input.trim()}
-                  className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-[hsl(var(--primary))] to-cyan-500 hover:from-[hsl(var(--primary))]/90 hover:to-cyan-400 text-white rounded-xl shadow-lg shadow-[hsl(var(--primary))]/30 hover:shadow-[hsl(var(--primary))]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[hsl(var(--primary))]/30"
-                >
-                  <Send className="h-5 w-5" />
-                </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                <div ref={messagesEndRef} />
               </div>
+
+              {/* Input Area */}
+              <div className="p-4 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleVoiceInput}
+                    disabled={isLoading}
+                    className={`inline-flex items-center justify-center w-12 h-12 rounded-xl transition-all ${
+                      status === "recording"
+                        ? "bg-red-500/20 border-2 border-red-500 animate-pulse"
+                        : "bg-[hsl(var(--muted))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--accent))]"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {status === "recording" ? (
+                      <Square className="h-5 w-5 text-red-500" />
+                    ) : (
+                      <Mic className="h-5 w-5 text-[hsl(var(--foreground))]" />
+                    )}
+                  </button>
+                  <input
+                    className="flex-1 bg-[hsl(var(--input))] backdrop-blur-sm text-[hsl(var(--foreground))] rounded-xl px-4 py-2.5 border border-[hsl(var(--border))] focus:outline-none focus:border-[hsl(var(--ring))] focus:ring-2 focus:ring-[hsl(var(--ring))]/20 placeholder:text-[hsl(var(--foreground))]/40 transition-all"
+                    placeholder="Ask the Savvy agent..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={onKeyDown}
+                    disabled={isLoading}
+                  />
+                  <button
+                    onClick={() => sendMessage()}
+                    disabled={isLoading || !input.trim()}
+                    className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-[hsl(var(--primary))] to-cyan-500 hover:from-[hsl(var(--primary))]/90 hover:to-cyan-400 text-white rounded-xl shadow-lg shadow-[hsl(var(--primary))]/30 hover:shadow-[hsl(var(--primary))]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[hsl(var(--primary))]/30"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Hidden Audio Element */}
+              <audio
+                ref={audioRef}
+                onEnded={() => {
+                  setIsSpeaking(false);
+                  if (currentAudioUrlRef.current) {
+                    URL.revokeObjectURL(currentAudioUrlRef.current);
+                    currentAudioUrlRef.current = null;
+                  }
+                }}
+                onError={() => {
+                  setIsSpeaking(false);
+                  if (currentAudioUrlRef.current) {
+                    URL.revokeObjectURL(currentAudioUrlRef.current);
+                    currentAudioUrlRef.current = null;
+                  }
+                }}
+                style={{ display: "none" }}
+              />
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );

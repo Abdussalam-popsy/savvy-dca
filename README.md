@@ -38,7 +38,7 @@ Savvy is an AI agent that enforces weekly Dollar Cost Averaging with strict mode
 ## Video Demo
 [Insert YouTube/Loom link]
 
-Built for Encode Club x Neo x SpoonOS Hackathon (Dec 2024)
+Built at Encode Club Hackathon using Neo x SpoonOS x ELevenLabs (Dec 5-7, 2025)
 
 
 ------------------

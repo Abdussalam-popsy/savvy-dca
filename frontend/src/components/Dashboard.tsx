@@ -73,7 +73,8 @@ export function Dashboard({
     if (!confirmed) return;
 
     try {
-      const response = await fetch("http://localhost:5001/api/agent/reset", {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001";
+      const response = await fetch(`${apiUrl}/api/agent/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+app.config['ELEVENLABS_API_KEY'] = os.getenv('ELEVENLABS_API_KEY', 'YOUR_API_KEY_HERE')
+app.config['VOICE_ID'] = os.getenv('VOICE_ID', 'pNInz6obpgDQGcFmaJgB')  # Default to Adam voice
+# Right after app = Flask(__name__)
+CORS(app)
 
 # Configure CORS - allow all origins for development
 CORS(app, resources={r'/*': {'origins': '*'}})
